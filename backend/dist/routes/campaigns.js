@@ -1,0 +1,84 @@
+import { Router } from 'express';
+import { z } from 'zod';
+import { prisma } from '../lib/prisma.js';
+import { requireAuth, requireNgo } from '../middleware/auth.js';
+import { assertCampaignAccess } from '../services/auth.js';
+import { ApiError } from '../utils/errors.js';
+export const campaignRouter = Router();
+const amount = z.coerce.number().positive();
+const campaignInput = z.object({ ngoId: z.string().min(1), name: z.string().min(2).max(120), description: z.string().max(5000).optional(), targetAmount: amount, blockchainContractAddress: z.string().optional(), chainId: z.coerce.number().int().positive(), status: z.enum(['DRAFT', 'ACTIVE', 'COMPLETED', 'PAUSED']).optional() });
+campaignRouter.get('/', async (_q, res, next) => { try {
+    res.json({ success: true, data: await prisma.campaign.findMany({ include: { ngo: true, _count: { select: { donations: true, withdrawals: true } } }, orderBy: { createdAt: 'desc' } }) });
+}
+catch (e) {
+    next(e);
+} });
+campaignRouter.get('/:id', async (req, res, next) => { try {
+    const c = await prisma.campaign.findUnique({ where: { id: req.params.id }, include: { ngo: true, categories: true, milestones: true } });
+    if (!c)
+        throw new ApiError(404, 'CAMPAIGN_NOT_FOUND', 'Campaign not found');
+    res.json({ success: true, data: c });
+}
+catch (e) {
+    next(e);
+} });
+campaignRouter.get('/:id/categories', async (req, res, next) => { try {
+    res.json({ success: true, data: await prisma.category.findMany({ where: { campaignId: req.params.id } }) });
+}
+catch (e) {
+    next(e);
+} });
+campaignRouter.get('/:id/milestones', async (req, res, next) => { try {
+    res.json({ success: true, data: await prisma.milestone.findMany({ where: { campaignId: req.params.id } }) });
+}
+catch (e) {
+    next(e);
+} });
+campaignRouter.get('/:id/donations', async (req, res, next) => { try {
+    res.json({ success: true, data: await prisma.donation.findMany({ where: { campaignId: req.params.id }, orderBy: { timestamp: 'desc' } }) });
+}
+catch (e) {
+    next(e);
+} });
+campaignRouter.get('/:id/withdrawals', async (req, res, next) => { try {
+    res.json({ success: true, data: await prisma.withdrawal.findMany({ where: { campaignId: req.params.id }, include: { category: true, milestone: true, receipts: true }, orderBy: { timestamp: 'desc' } }) });
+}
+catch (e) {
+    next(e);
+} });
+campaignRouter.post('/', requireAuth, requireNgo, async (req, res, next) => { try {
+    const data = campaignInput.parse(req.body);
+    if (req.auth.role !== 'ADMIN') {
+        const member = await prisma.ngoMember.findUnique({ where: { ngoId_userId: { ngoId: data.ngoId, userId: req.auth.userId } } });
+        if (!member)
+            throw new ApiError(403, 'FORBIDDEN', 'You cannot create a campaign for this NGO');
+    }
+    res.status(201).json({ success: true, data: await prisma.campaign.create({ data }) });
+}
+catch (e) {
+    next(e);
+} });
+campaignRouter.patch('/:id', requireAuth, requireNgo, async (req, res, next) => { try {
+    await assertCampaignAccess(req.params.id, req.auth.userId, req.auth.role);
+    const data = campaignInput.omit({ ngoId: true }).partial().parse(req.body);
+    res.json({ success: true, data: await prisma.campaign.update({ where: { id: req.params.id }, data }) });
+}
+catch (e) {
+    next(e);
+} });
+campaignRouter.post('/:id/categories', requireAuth, requireNgo, async (req, res, next) => { try {
+    await assertCampaignAccess(req.params.id, req.auth.userId, req.auth.role);
+    const data = z.object({ name: z.string().min(2), description: z.string().max(2000).optional(), allocationCap: amount }).parse(req.body);
+    res.status(201).json({ success: true, data: await prisma.category.create({ data: { ...data, campaignId: req.params.id } }) });
+}
+catch (e) {
+    next(e);
+} });
+campaignRouter.post('/:id/milestones', requireAuth, requireNgo, async (req, res, next) => { try {
+    await assertCampaignAccess(req.params.id, req.auth.userId, req.auth.role);
+    const data = z.object({ title: z.string().min(2), description: z.string().max(5000).optional(), targetAmount: amount }).parse(req.body);
+    res.status(201).json({ success: true, data: await prisma.milestone.create({ data: { ...data, campaignId: req.params.id } }) });
+}
+catch (e) {
+    next(e);
+} });

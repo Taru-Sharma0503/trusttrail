@@ -1,0 +1,37 @@
+import { Router } from 'express';
+import multer from 'multer';
+import { z } from 'zod';
+import { prisma } from '../lib/prisma.js';
+import { requireAuth, requireNgo } from '../middleware/auth.js';
+import { assertCampaignAccess } from '../services/auth.js';
+import { storeProof } from '../services/ipfs.js';
+import { env } from '../config/env.js';
+import { ApiError } from '../utils/errors.js';
+export const milestoneRouter = Router();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: env.MAX_UPLOAD_BYTES }, fileFilter: (_r, f, cb) => cb(null, ['application/pdf', 'image/jpeg', 'image/png'].includes(f.mimetype)) });
+milestoneRouter.patch('/:id', requireAuth, requireNgo, async (req, res, next) => { try {
+    const m = await prisma.milestone.findUnique({ where: { id: req.params.id } });
+    if (!m)
+        throw new ApiError(404, 'MILESTONE_NOT_FOUND', 'Milestone not found');
+    await assertCampaignAccess(m.campaignId, req.auth.userId, req.auth.role);
+    const data = z.object({ title: z.string().min(2).optional(), description: z.string().optional(), status: z.enum(['PENDING', 'SUBMITTED', 'APPROVED', 'RELEASED']).optional(), proofHash: z.string().optional() }).parse(req.body);
+    res.json({ success: true, data: await prisma.milestone.update({ where: { id: m.id }, data: { ...data, completedAt: data.status === 'RELEASED' ? new Date() : undefined } }) });
+}
+catch (e) {
+    next(e);
+} });
+milestoneRouter.post('/:id/proof', requireAuth, requireNgo, upload.single('file'), async (req, res, next) => { try {
+    const m = await prisma.milestone.findUnique({ where: { id: req.params.id } });
+    if (!m)
+        throw new ApiError(404, 'MILESTONE_NOT_FOUND', 'Milestone not found');
+    await assertCampaignAccess(m.campaignId, req.auth.userId, req.auth.role);
+    if (!req.file)
+        throw new ApiError(400, 'FILE_REQUIRED', 'Attach a PDF, PNG, or JPEG proof file');
+    const stored = await storeProof(req.file);
+    const receipt = await prisma.receipt.create({ data: { campaignId: m.campaignId, milestoneId: m.id, ipfsCid: stored.cid, contentHash: stored.contentHash, fileName: req.file.originalname, mimeType: req.file.mimetype, uploadedById: req.auth.userId } });
+    await prisma.milestone.update({ where: { id: m.id }, data: { proofHash: stored.contentHash, status: 'SUBMITTED' } });
+    res.status(201).json({ success: true, data: { receipt, contractCommitment: { contentHash: stored.contentHash, cid: stored.cid } } });
+}
+catch (e) {
+    next(e);
+} });

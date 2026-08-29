@@ -1,0 +1,21 @@
+import { randomBytes } from 'node:crypto';
+import { verifyMessage } from 'ethers';
+import jwt from 'jsonwebtoken';
+import { Role } from '@prisma/client';
+import { prisma } from '../lib/prisma.js';
+import { env } from '../config/env.js';
+import { ApiError } from '../utils/errors.js';
+const normalize = (wallet) => wallet.toLowerCase();
+const message = (wallet, nonce) => `TrustTrail sign-in\nWallet: ${wallet}\nNonce: ${nonce}`;
+export async function issueNonce(walletAddress) { const wallet = normalize(walletAddress); const nonce = randomBytes(24).toString('hex'); const expires = new Date(Date.now() + 5 * 60_000); await prisma.user.upsert({ where: { walletAddress: wallet }, create: { walletAddress: wallet, nonce, nonceExpiresAt: expires }, update: { nonce, nonceExpiresAt: expires } }); return { nonce, message: message(wallet, nonce), expiresAt: expires }; }
+export async function verifyWallet(walletAddress, signature) { const wallet = normalize(walletAddress); const user = await prisma.user.findUnique({ where: { walletAddress: wallet } }); if (!user?.nonce || !user.nonceExpiresAt || user.nonceExpiresAt < new Date())
+    throw new ApiError(401, 'NONCE_EXPIRED', 'Sign-in nonce is missing or expired'); let signer; try {
+    signer = normalize(verifyMessage(message(wallet, user.nonce), signature));
+}
+catch {
+    throw new ApiError(401, 'INVALID_SIGNATURE', 'Signature could not be verified');
+} if (signer !== wallet)
+    throw new ApiError(401, 'INVALID_SIGNATURE', 'Signature does not match wallet'); const verified = await prisma.user.update({ where: { id: user.id }, data: { nonce: null, nonceExpiresAt: null } }); const token = jwt.sign({ sub: verified.id, walletAddress: verified.walletAddress, role: verified.role }, env.JWT_SECRET, { expiresIn: env.JWT_EXPIRES_IN }); return { token, user: { id: verified.id, walletAddress: verified.walletAddress, role: verified.role } }; }
+export async function assertCampaignAccess(campaignId, userId, role) { const campaign = await prisma.campaign.findUnique({ where: { id: campaignId }, include: { ngo: { include: { members: true } } } }); if (!campaign)
+    throw new ApiError(404, 'CAMPAIGN_NOT_FOUND', 'Campaign not found'); if (role !== Role.ADMIN && !campaign.ngo.members.some(m => m.userId === userId))
+    throw new ApiError(403, 'FORBIDDEN', 'You cannot modify this campaign'); return campaign; }

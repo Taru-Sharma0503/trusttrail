@@ -1,0 +1,4 @@
+import 'dotenv/config';
+import { z } from 'zod';
+const schema = z.object({ NODE_ENV: z.enum(['development', 'test', 'production']).default('development'), PORT: z.coerce.number().default(4000), DATABASE_URL: z.string().min(1), JWT_SECRET: z.string().min(32), JWT_EXPIRES_IN: z.string().default('8h'), CORS_ORIGIN: z.string().default('http://localhost:3000'), RPC_URL: z.string().url().optional().or(z.literal('')), CHAIN_ID: z.coerce.number().int().positive().default(11155111), VAULT_FACTORY_ADDRESS: z.string().optional(), INDEXER_START_BLOCK: z.coerce.number().int().nonnegative().default(0), IPFS_API_URL: z.string().url().optional().or(z.literal('')), IPFS_GATEWAY_URL: z.string().url().optional().or(z.literal('')), MAX_UPLOAD_BYTES: z.coerce.number().positive().default(10485760) });
+export const env = schema.parse(process.env);
