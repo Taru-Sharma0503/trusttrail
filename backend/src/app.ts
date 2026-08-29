@@ -1,5 +1,5 @@
 import express from 'express'; import cors from 'cors'; 
-import pinoHttp from 'pino-http';
+import { pinoHttp } from 'pino-http';
 import helmet from 'helmet'; import rateLimit from 'express-rate-limit';
  import { authRouter } from './routes/auth.js'; import { campaignRouter } from './routes/campaigns.js'; import { milestoneRouter } from './routes/milestones.js'; import { publicRouter } from './routes/public.js'; import { donationRouter } from './routes/donations.js'; import { notFound,errorHandler } from './utils/errors.js'; import { prisma } from './lib/prisma.js'; import { rpcHealth } from './services/blockchain.js'; import { env } from './config/env.js';
 const corsOrigins = env.CORS_ORIGIN.split(',').map((origin) => origin.trim().replace(/\/$/, '')).filter(Boolean);
