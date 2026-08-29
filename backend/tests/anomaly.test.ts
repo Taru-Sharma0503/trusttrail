@@ -1,0 +1,3 @@
+import test from 'node:test'; import assert from 'node:assert/strict'; import { detectAnomaly } from '../src/services/anomaly.js';
+test('normal withdrawal is not flagged',()=>assert.equal(detectAnomaly({amount:100,allocationCap:1000,spentAmount:100,historicalAmounts:[90,110,100],recentLargeCount:0,recipientPreviouslyUsed:true}).flagged,false));
+test('oversized and new recipient flags are explainable',()=>{const r=detectAnomaly({amount:700,allocationCap:1000,spentAmount:100,historicalAmounts:[100,120],recentLargeCount:0,recipientPreviouslyUsed:false});assert.equal(r.flagged,true);assert.ok(r.reasons.length>=2);assert.equal(r.severity,'HIGH')});

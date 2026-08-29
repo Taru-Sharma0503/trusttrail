@@ -5,7 +5,12 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "backend:dev": "pnpm --dir backend dev",
+    "backend:build": "pnpm --dir backend build",
+    "backend:test": "pnpm --dir backend test",
+    "db:migrate": "pnpm --dir backend db:migrate",
+    "indexer": "pnpm --dir backend indexer"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
