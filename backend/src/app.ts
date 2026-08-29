@@ -1,8 +1,10 @@
 import express from 'express'; import cors from 'cors'; 
-import { pinoHttp } from 'pino-http';
+import { createRequire } from 'node:module';
+import type { Options as PinoHttpOptions } from 'pino-http';
 import helmet from 'helmet'; import rateLimit from 'express-rate-limit';
- import { authRouter } from './routes/auth.js'; import { campaignRouter } from './routes/campaigns.js'; import { milestoneRouter } from './routes/milestones.js'; import { publicRouter } from './routes/public.js'; import { donationRouter } from './routes/donations.js'; import { notFound,errorHandler } from './utils/errors.js'; import { prisma } from './lib/prisma.js'; import { rpcHealth } from './services/blockchain.js'; import { env } from './config/env.js';
-const corsOrigins = env.CORS_ORIGIN.split(',').map((origin) => origin.trim().replace(/\/$/, '')).filter(Boolean);
-export const app=express(); app.disable('x-powered-by');app.use(pinoHttp());app.use(helmet());app.use(cors({origin:corsOrigins,methods:['GET','POST','PATCH']}));app.use(rateLimit({windowMs:15*60_000,limit:200,standardHeaders:'draft-7',legacyHeaders:false}));app.use(express.json({limit:'1mb'}));
+import { authRouter } from './routes/auth.js'; import { campaignRouter } from './routes/campaigns.js'; import { milestoneRouter } from './routes/milestones.js'; import { publicRouter } from './routes/public.js'; import { donationRouter } from './routes/donations.js'; import { notFound,errorHandler } from './utils/errors.js'; import { prisma } from './lib/prisma.js'; import { rpcHealth } from './services/blockchain.js'; import { env } from './config/env.js';
+const require = createRequire(import.meta.url);
+const pinoHttp = require('pino-http') as (options?: PinoHttpOptions) => express.RequestHandler;
+export const app=express(); app.disable('x-powered-by');app.use(pinoHttp());app.use(helmet());app.use(cors({origin:env.CORS_ORIGIN.split(','),methods:['GET','POST','PATCH']}));app.use(rateLimit({windowMs:15*60_000,limit:200,standardHeaders:'draft-7',legacyHeaders:false}));app.use(express.json({limit:'1mb'}));
 app.get('/health',async(_req,res)=>{let database=false;try{await prisma.$queryRaw`SELECT 1`;database=true}catch{}const [rpc,state]=await Promise.all([rpcHealth(),prisma.indexerState.findUnique({where:{id:'default'}}).catch(()=>null)]);res.status(database?200:503).json({success:database,data:{status:database?'ok':'degraded',database,rpc,indexer:{lastIndexedBlock:state?.lastIndexedBlock??null,lastSuccessfulAt:state?.lastSuccessfulAt??null}}});});
 app.use('/api/auth',authRouter);app.use('/api/campaigns',campaignRouter);app.use('/api/milestones',milestoneRouter);app.use('/api/public',publicRouter);app.use('/api/donations',donationRouter);app.use(notFound);app.use(errorHandler);
