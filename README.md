@@ -1,6 +1,30 @@
-# trusttrail
+# TrustTrail
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [v0](https://v0.app).
+The repository contains the v0-generated Next.js frontend and a standalone Express + PostgreSQL backend in [`backend`](backend). The backend is designed for SIH MVP use: it records off-chain metadata, while the blockchain remains the money-movement authority.
+
+## Backend quick start
+
+1. Copy `backend/.env.example` to `backend/.env` and set `DATABASE_URL` and a 32+ character `JWT_SECRET`.
+2. Install dependencies: `pnpm install`.
+3. Generate and migrate Prisma: `pnpm --dir backend db:generate` then `pnpm --dir backend db:migrate`.
+4. Start the API: `pnpm backend:dev` (port 4000); start the UI separately with `pnpm dev`.
+
+Useful commands: `pnpm backend:build`, `pnpm backend:test`, and `pnpm indexer`.
+
+### API overview
+
+- `POST /api/auth/nonce`, `POST /api/auth/verify` — one-time wallet-signature authentication.
+- Public: `GET /api/campaigns`, `/api/campaigns/:id`, and related categories/milestones/donations/withdrawals routes; `GET /api/public/campaigns/:id/transparency`.
+- NGO JWT: create/update campaigns, categories, milestones, and `POST /api/milestones/:id/proof`.
+- `GET /api/donations/:id/receipt` produces a PDF after a donation is confirmed; `GET /health` reports DB/RPC/indexer status.
+
+### Blockchain and IPFS
+
+No smart contracts or ABI were present in this repository. The adapter in `backend/src/services/blockchain.ts` intentionally does not invent event signatures; once an audited ABI and deployed addresses are supplied, add decoding/mapping there. The indexer is already idempotent at the event persistence layer. Proofs use an IPFS-compatible add endpoint when `IPFS_API_URL` is configured, or clearly return a `local-sha256-*` development identifier otherwise (not an IPFS CID).
+
+### MVP limitations
+
+Campaign/NGO membership must be seeded or created through an administrative process; no onboarding route is exposed. Blockchain event decoding and on-chain state reads await the final contract ABI. The backend never represents a client-reported transaction as confirmed.
 
 ## Built with v0
 
