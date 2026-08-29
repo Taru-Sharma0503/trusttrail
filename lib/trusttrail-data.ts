@@ -23,9 +23,9 @@ export const campaigns: Campaign[] = [
 ]
 
 export const budgets: CategoryBudget[] = [
-  { name: 'Medical Supplies', allocated: 400000, spent: 240000, color: '#4F7D5A' },
-  { name: 'Food & Nutrition', allocated: 200000, spent: 120000, color: '#c58a38' },
-  { name: 'Transportation', allocated: 100000, spent: 60000, color: '#B9825B' },
+  { name: 'Medical Supplies', allocated: 400000, spent: 240000, color: '#2E8B57' },
+  { name: 'Food & Nutrition', allocated: 200000, spent: 120000, color: '#F4B942' },
+  { name: 'Transportation', allocated: 100000, spent: 60000, color: '#168F8B' },
 ]
 
 export const milestones: Milestone[] = [
