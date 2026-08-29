@@ -5,7 +5,7 @@ type ApiResponse<T> = { success: true; data: T }
 export type ApiCampaign = {
   id: string; name: string; description?: string | null; targetAmount: string | number
   status: string; ngo?: { name: string }; _count?: { donations?: number; withdrawals?: number }
-  categories?: unknown[]; milestones?: unknown[]
+  categories?: Array<{ name: string }>; milestones?: unknown[]; donations?: Array<{ amount: string | number }>
 }
 
 export type TransparencyData = {
@@ -27,7 +27,8 @@ const images = [
 const number = (value: string | number | null | undefined) => Number(value ?? 0)
 
 export function campaignToCard(campaign: ApiCampaign, index = 0): Campaign {
-  return { id: campaign.id, title: campaign.name, ngo: campaign.ngo?.name ?? 'Verified NGO', location: 'India', category: 'Community', raised: 0, target: number(campaign.targetAmount), donors: campaign._count?.donations ?? 0, milestones: campaign.milestones?.length ?? 0, currentMilestone: 'Public campaign record', score: 100, image: images[index % images.length] }
+  const raised = campaign.donations?.reduce((total, donation) => total + number(donation.amount), 0) ?? 0
+  return { id: campaign.id, title: campaign.name, ngo: campaign.ngo?.name ?? 'Verified NGO', location: 'India', category: campaign.categories?.[0]?.name ?? 'Community', raised, target: number(campaign.targetAmount), donors: campaign._count?.donations ?? 0, milestones: campaign.milestones?.length ?? 0, currentMilestone: 'Public campaign record', score: 100, image: images[index % images.length] }
 }
 
 async function request<T>(path: string): Promise<T> {
