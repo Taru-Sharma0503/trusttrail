@@ -11,6 +11,24 @@ The repository contains the v0-generated Next.js frontend and a standalone Expre
 
 Useful commands: `pnpm backend:build`, `pnpm backend:test`, and `pnpm indexer`.
 
+### Deployment configuration
+
+Render must generate and compile the backend on every deploy. Set its build command to:
+
+```bash
+pnpm --dir backend db:generate && pnpm --dir backend build
+```
+
+Set its start command to:
+
+```bash
+pnpm --dir backend exec prisma migrate deploy && node backend/dist/server.js
+```
+
+Use Node 20 or newer (the backend declares `>=20`). In Render, set `DATABASE_URL`, a freshly rotated 32+ character `JWT_SECRET`, `JWT_EXPIRES_IN`, and `CORS_ORIGIN` (one or more comma-separated origins with no trailing slash). Render supplies `PORT`; do not set it to a conflicting value. Leave `RPC_URL`, `VAULT_FACTORY_ADDRESS`, and `IPFS_API_URL` unset until those integrations exist.
+
+In Vercel, set `NEXT_PUBLIC_API_URL` to the public Render API URL without a trailing slash. See [`.env.local.example`](.env.local.example) for the local frontend equivalent.
+
 ### API overview
 
 - `POST /api/auth/nonce`, `POST /api/auth/verify` — one-time wallet-signature authentication.

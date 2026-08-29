@@ -6,11 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "backend:dev": "pnpm --dir backend dev",
-    "backend:build": "pnpm --dir backend build",
-    "backend:test": "pnpm --dir backend test",
-    "db:migrate": "pnpm --dir backend db:migrate",
-    "indexer": "pnpm --dir backend indexer"
+    "backend:dev": "pnpm --filter trusttrail-backend dev",
+    "backend:build": "pnpm --filter trusttrail-backend build",
+    "backend:test": "pnpm --filter trusttrail-backend test",
+    "db:migrate": "pnpm --filter trusttrail-backend db:migrate",
+    "indexer": "pnpm --filter trusttrail-backend indexer"
   },
   "dependencies": {
     "@base-ui/react": "^1.5.0",
